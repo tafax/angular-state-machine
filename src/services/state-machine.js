@@ -208,7 +208,7 @@ FSM.provider('stateMachine', function StateMachineProvider()
         machineConfiguration.configure();
         var states = machineConfiguration.getStates();
         this.current = states['init'];
-        this.current.object = {};
+        this.current.params = {};
     };
 
     /**
@@ -322,14 +322,19 @@ FSM.provider('stateMachine', function StateMachineProvider()
                     args = Object.merge(args, this.current);
 
                     if(parameters)
-                        args = Object.merge(args, parameters);
+                        args.params = Object.merge(args.params, parameters);
 
                     var result = $injector.invoke(state.action, this, args);
 
-                    if(!result && this.current.object)
-                        state.object = this.current.object;
+                    if(!result && this.current.params)
+                        state.params = this.current.params;
                     else
-                        state.object = result;
+                    {
+                        if(!state.hasOwnProperty('params'))
+                            state.params = {};
+
+                        state.params = Object.merge(state.params, result);
+                    }
 
                     this.current = state;
                 }

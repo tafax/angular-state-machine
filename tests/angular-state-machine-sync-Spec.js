@@ -55,14 +55,15 @@ describe('angular-state-machine-sync', function()
                     }]
                 },
                 third: {
-                    action: function(object, param)
+                    action: function(object)
                     {
                         console.log('THIRD');
 
                         _object.second = 'second';
+                        _object.param = 'test';
 
                         expect(object).toEqual(_object);
-                        expect(param).toEqual('test');
+                        expect(object.param).toEqual('test');
                     }
                 }
             });

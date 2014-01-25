@@ -1,6 +1,6 @@
 /**
  * AngularJS service to implement a simple finite state machine.
- * @version v0.1.0 - 2014-01-23
+ * @version v0.1.0 - 2014-01-25
  * @link https://github.com/tafax/angular-state-machine
  * @author Matteo Tafani Alunno <matteo.tafanialunno@gmail.com>
  * @license MIT License, http://www.opensource.org/licenses/MIT
@@ -332,14 +332,19 @@ FSM.provider('stateMachine', function StateMachineProvider()
                     args = Object.merge(args, this.current);
 
                     if(parameters)
-                        args = Object.merge(args, parameters);
+                        args.object = Object.merge(args.object, parameters);
 
                     var result = $injector.invoke(state.action, this, args);
 
                     if(!result && this.current.object)
                         state.object = this.current.object;
                     else
-                        state.object = result;
+                    {
+                        if(!state.hasOwnProperty('object'))
+                            state.object = {};
+
+                        state.object = Object.merge(state.object, result);
+                    }
 
                     this.current = state;
                 }
