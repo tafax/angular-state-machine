@@ -18,7 +18,7 @@ module.exports = function(config) {
             'lib/angular-mocks/angular-mocks.js',
             'src/angular-state-machine.js',
             'src/services/state-machine.js',
-            'tests/**/*.js'
+            'tests/**/*Spec.js'
         ],
 
 

@@ -3,7 +3,7 @@ describe('angular-state-machine-sync', function()
     var _stateMachine;
     var _injector;
 
-    var _target = {
+    var _object = {
         test: 'test'
     };
 
@@ -28,18 +28,42 @@ describe('angular-state-machine-sync', function()
                     {
                         console.log('FIRST');
                         expect(name).toEqual('init');
-                        return _target;
+                        return _object;
                     }
                 },
                 second: {
-                    action: ['$log', 'stateMachine', 'name', 'target', function($log, stateMachine, name, target)
+                    transitions: {
+                        third: [{
+                            to: 'third',
+                            predicate: function()
+                            {
+                                return true;
+                            }
+                        }]
+                    },
+                    action: ['$log', 'stateMachine', 'name', 'object', function($log, stateMachine, name, object)
                     {
                         console.log('SECOND');
                         expect(stateMachine).not.toBeUndefined();
                         expect($log).not.toBeUndefined();
                         expect(name).toEqual('first');
-                        expect(target).toEqual(_target);
+                        expect(object).toEqual(_object);
+
+                        object.second = 'second';
+
+                        return object;
                     }]
+                },
+                third: {
+                    action: function(object, param)
+                    {
+                        console.log('THIRD');
+
+                        _object.second = 'second';
+
+                        expect(object).toEqual(_object);
+                        expect(param).toEqual('test');
+                    }
                 }
             });
         }]);
@@ -62,8 +86,8 @@ describe('angular-state-machine-sync', function()
             _stateMachine.initialize();
 
             _stateMachine.send('first');
-
             _stateMachine.send('second');
+            _stateMachine.send('third', {param: 'test'});
 
             expect(_injector.invoke).toHaveBeenCalled();
         });
@@ -141,6 +165,13 @@ describe('angular-state-machine-sync', function()
             expect(messages).not.toContain('fake');
 
             _stateMachine.send('second');
+
+            messages = _stateMachine.available();
+
+            expect(messages).toContain('third');
+            expect(messages).not.toContain('fake');
+
+            _stateMachine.send('third', {param: 'test'});
 
             messages = _stateMachine.available();
 
