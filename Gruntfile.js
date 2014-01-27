@@ -46,7 +46,11 @@ module.exports = function(grunt)
         },
         concat: {
             options: {
-                banner: '<%= meta.banner %>'
+                banner: '<%= meta.banner %>\n\n\'use strict\';\n\n',
+                process: function(src, filepath) {
+                    return '\n// Source: ' + filepath + '\n\n' +
+                        src.replace(/(^|\n)[ \t]*('use strict'|"use strict");?\s*/g, '$1');
+                }
             },
             dist: {
                 src: ['<%= dirs.src %>/**/*.js'],

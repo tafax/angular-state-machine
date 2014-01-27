@@ -1,14 +1,20 @@
 /**
  * AngularJS service to implement a simple finite state machine.
- * @version v0.1.0 - 2014-01-25
+ * @version v0.1.0 - 2014-01-27
  * @link https://github.com/tafax/angular-state-machine
  * @author Matteo Tafani Alunno <matteo.tafanialunno@gmail.com>
  * @license MIT License, http://www.opensource.org/licenses/MIT
  */
+
+
 'use strict';
 
+
+// Source: src/angular-state-machine.js
+
 var FSM = angular.module('FSM', []);
-'use strict';
+
+// Source: src/services/state-machine.js
 
 /**
  * The state machine provider configures the machine
@@ -218,7 +224,7 @@ FSM.provider('stateMachine', function StateMachineProvider()
         machineConfiguration.configure();
         var states = machineConfiguration.getStates();
         this.current = states['init'];
-        this.current.object = {};
+        this.current.params = {};
     };
 
     /**
@@ -332,18 +338,18 @@ FSM.provider('stateMachine', function StateMachineProvider()
                     args = Object.merge(args, this.current);
 
                     if(parameters)
-                        args.object = Object.merge(args.object, parameters);
+                        args.params = Object.merge(args.params, parameters);
 
                     var result = $injector.invoke(state.action, this, args);
 
-                    if(!result && this.current.object)
-                        state.object = this.current.object;
+                    if(!result && this.current.params)
+                        state.params = this.current.params;
                     else
                     {
-                        if(!state.hasOwnProperty('object'))
-                            state.object = {};
+                        if(!state.hasOwnProperty('params'))
+                            state.params = {};
 
-                        state.object = Object.merge(state.object, result);
+                        state.params = Object.merge(state.params, result);
                     }
 
                     this.current = state;

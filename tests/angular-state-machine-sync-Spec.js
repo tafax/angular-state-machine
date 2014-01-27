@@ -3,7 +3,7 @@ describe('angular-state-machine-sync', function()
     var _stateMachine;
     var _injector;
 
-    var _object = {
+    var _params = {
         test: 'test'
     };
 
@@ -28,7 +28,7 @@ describe('angular-state-machine-sync', function()
                     {
                         console.log('FIRST');
                         expect(name).toEqual('init');
-                        return _object;
+                        return _params;
                     }
                 },
                 second: {
@@ -41,29 +41,28 @@ describe('angular-state-machine-sync', function()
                             }
                         }]
                     },
-                    action: ['$log', 'stateMachine', 'name', 'object', function($log, stateMachine, name, object)
+                    action: ['$log', 'stateMachine', 'name', 'params', function($log, stateMachine, name, params)
                     {
                         console.log('SECOND');
                         expect(stateMachine).not.toBeUndefined();
                         expect($log).not.toBeUndefined();
                         expect(name).toEqual('first');
-                        expect(object).toEqual(_object);
+                        expect(params).toEqual(_params);
 
-                        object.second = 'second';
+                        params.second = 'second';
 
-                        return object;
+                        return params;
                     }]
                 },
                 third: {
-                    action: function(object)
+                    action: function(params)
                     {
                         console.log('THIRD');
 
-                        _object.second = 'second';
-                        _object.param = 'test';
+                        _params.second = 'second';
+                        _params.param = 'test';
 
-                        expect(object).toEqual(_object);
-                        expect(object.param).toEqual('test');
+                        expect(params).toEqual(_params);
                     }
                 }
             });
