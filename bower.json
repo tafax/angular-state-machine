@@ -1,6 +1,6 @@
 {
     "name": "angular-state-machine",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "main": "./dist/angular-state-machine.min.js",
     "description": "AngularJS service to implement a simple finite state machine.",
     "repository": {

@@ -1,14 +1,20 @@
 /**
  * AngularJS service to implement a simple finite state machine.
- * @version v0.1.0 - 2014-01-22
+ * @version v0.2.0 - 2014-01-27
  * @link https://github.com/tafax/angular-state-machine
  * @author Matteo Tafani Alunno <matteo.tafanialunno@gmail.com>
  * @license MIT License, http://www.opensource.org/licenses/MIT
  */
+
+
 'use strict';
 
+
+// Source: src/angular-state-machine.js
+
 var FSM = angular.module('FSM', []);
-'use strict';
+
+// Source: src/services/state-machine.js
 
 /**
  * The state machine provider configures the machine
@@ -17,6 +23,38 @@ var FSM = angular.module('FSM', []);
  */
 FSM.provider('stateMachine', function StateMachineProvider()
 {
+    /**
+     * Merges two objects in one
+     * by adding the properties
+     * in the result.
+     *
+     * @param {Object} obj1
+     * @param {Object} obj2
+     * @returns {Object}
+     */
+    Object.merge = function(obj1, obj2)
+    {
+        var result = {};
+
+        for(var i in obj1)
+        {
+            result[i] = obj1[i];
+
+            if((i in obj2) && (typeof obj1[i] === "object") && (i !== null))
+                result[i] = Object.merge(obj1[i],obj2[i]);
+        }
+
+        for(var j in obj2)
+        {
+            if(j in result)
+                continue;
+
+            result[j] = obj2[j];
+        }
+
+        return result;
+    };
+
     /**
      * Class to provide the current machine
      * configuration.
@@ -27,38 +65,6 @@ FSM.provider('stateMachine', function StateMachineProvider()
      */
     function MachineConfiguration(config, json)
     {
-        /**
-         * Merges two objects in one
-         * by adding the properties
-         * in the result.
-         *
-         * @param {Object} obj1
-         * @param {Object} obj2
-         * @returns {Object}
-         */
-        function merge(obj1, obj2)
-        {
-            var result = {};
-
-            for(var i in obj1)
-            {
-                result[i] = obj1[i];
-
-                if((i in obj2) && (typeof obj1[i] === "object") && (i !== null))
-                    result[i] = merge(obj1[i],obj2[i]);
-            }
-
-            for(var j in obj2)
-            {
-                if(j in result)
-                    continue;
-
-                result[j] = obj2[j];
-            }
-
-            return result;
-        }
-
         /**
          * Gets the JSON string which represents
          * the file for configuration.
@@ -79,7 +85,7 @@ FSM.provider('stateMachine', function StateMachineProvider()
          */
         this.extend = function(configuration)
         {
-            config = merge(config, configuration);
+            config = Object.merge(config, configuration);
         };
 
         /**
@@ -188,7 +194,7 @@ FSM.provider('stateMachine', function StateMachineProvider()
     MachineStrategy.prototype.hasMessage = function(machineConfiguration, message){};
     MachineStrategy.prototype.isAvailable = function(machineConfiguration, message){};
     MachineStrategy.prototype.available = function(machineConfiguration){};
-    MachineStrategy.prototype.send = function($injector, machineConfiguration, message){};
+    MachineStrategy.prototype.send = function($injector, machineConfiguration, message, parameters){};
 
     /////////////////////////////////////////////////////////////////////////////////
 
@@ -218,6 +224,7 @@ FSM.provider('stateMachine', function StateMachineProvider()
         machineConfiguration.configure();
         var states = machineConfiguration.getStates();
         this.current = states['init'];
+        this.current.params = {};
     };
 
     /**
@@ -292,8 +299,9 @@ FSM.provider('stateMachine', function StateMachineProvider()
      * @param {Object} $injector
      * @param {MachineConfiguration} machineConfiguration
      * @param {String} message
+     * @param {Object} [parameters]
      */
-    SyncStrategy.prototype.send = function($injector, machineConfiguration, message)
+    SyncStrategy.prototype.send = function($injector, machineConfiguration, message, parameters)
     {
         if(machineConfiguration.getMessages().indexOf(message) >= 0)
         {
@@ -304,9 +312,46 @@ FSM.provider('stateMachine', function StateMachineProvider()
                 var edges = transitions[this.current.name];
                 if(edges.hasOwnProperty(message))
                 {
+                    var edge = edges[message];
+
+                    if(edge instanceof Array)
+                    {
+                        var passed = [];
+                        for(var i in edge)
+                        {
+                            var transition = edge[i];
+                            if($injector.invoke(transition.predicate, this, this.current))
+                                passed.push(transition.to);
+                        }
+
+                        if(passed.length > 1)
+                            throw 'Unable to execute transition in state \'' + this.current.name + '\'. ' +
+                                'Two predicates was passed.';
+
+                        edge = passed[0];
+                    }
+
                     var states = machineConfiguration.getStates();
-                    var state = states[edges[message]];
-                    state.target = $injector.invoke(state.action, this, this.current);
+                    var state = states[edge];
+
+                    var args = {};
+                    args = Object.merge(args, this.current);
+
+                    if(parameters)
+                        args.params = Object.merge(args.params, parameters);
+
+                    var result = $injector.invoke(state.action, this, args);
+
+                    if(!result && this.current.params)
+                        state.params = this.current.params;
+                    else
+                    {
+                        if(!state.hasOwnProperty('params'))
+                            state.params = {};
+
+                        state.params = Object.merge(state.params, result);
+                    }
+
                     this.current = state;
                 }
             }
@@ -488,8 +533,9 @@ FSM.provider('stateMachine', function StateMachineProvider()
      * @param {Object} $injector
      * @param {MachineConfiguration} machineConfiguration
      * @param {String} message
+     * @param {Object} [parameters]
      */
-    AsyncStrategy.prototype.send = function($injector, machineConfiguration, message)
+    AsyncStrategy.prototype.send = function($injector, machineConfiguration, message, parameters)
     {
         if(null !== this.promise)
         {
@@ -497,7 +543,7 @@ FSM.provider('stateMachine', function StateMachineProvider()
 
             this.promise.then(function()
             {
-                deferred.resolve(SyncStrategy.prototype.send($injector, machineConfiguration, message));
+                deferred.resolve(SyncStrategy.prototype.send($injector, machineConfiguration, message, parameters));
             });
 
             return deferred.promise;
@@ -588,10 +634,11 @@ FSM.provider('stateMachine', function StateMachineProvider()
          * the current state according to the transitions.
          *
          * @param {String} message
+         * @param {Object} [parameters]
          */
-        this.send = function(message)
+        this.send = function(message, parameters)
         {
-            strategy.send($injector, machineConfiguration, message);
+            strategy.send($injector, machineConfiguration, message, parameters);
         };
     }
 
@@ -649,9 +696,10 @@ FSM.provider('stateMachine', function StateMachineProvider()
      *
      * @type {Array}
      */
-    this.$get = ['$injector', '$http', '$q', function($injector, $http, $q)
+    this.$get = ['$injector', function($injector)
     {
-        var strategy = (_async ? new AsyncStrategy($http, $q) : new SyncStrategy());
+        //var strategy = (_async ? new AsyncStrategy($http, $q) : new SyncStrategy());
+        var strategy = (_async ? null : new SyncStrategy());
 
         return new StateMachine($injector, strategy, new MachineConfiguration(_config, _json));
     }];
