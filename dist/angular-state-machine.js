@@ -1,6 +1,6 @@
 /**
  * AngularJS service to implement a simple finite state machine.
- * @version v0.1.0 - 2014-01-27
+ * @version v0.2.0 - 2014-01-27
  * @link https://github.com/tafax/angular-state-machine
  * @author Matteo Tafani Alunno <matteo.tafanialunno@gmail.com>
  * @license MIT License, http://www.opensource.org/licenses/MIT
