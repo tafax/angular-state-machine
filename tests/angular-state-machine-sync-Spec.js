@@ -76,7 +76,7 @@ describe('angular-state-machine-sync', function() {
         inject(function($injector) {
             _stateMachine = $injector.get('stateMachine');
             _injector = $injector;
-            spyOn(_injector, 'invoke').andCallThrough();
+            spyOn(_injector, 'invoke').and.callThrough();
         });
     });
 
