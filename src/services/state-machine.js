@@ -81,19 +81,10 @@ function StateMachine($injector, strategy, machineConfiguration) {
 }
 
 /**
- * The state machine provider configures the machine
- * to use specification from JSON file and/or using
- * async/sync mode.
+ * The state machine provider configures the machine with
+ * a rough configuration provided as a javascript object.
  */
 FSM.provider('stateMachine', function StateMachineProvider() {
-    /**
-     * JSON file to load configuration.
-     *
-     * @type {String|null}
-     * @private
-     */
-    var _json;
-
     /**
      * The state machine configuration.
      *
@@ -113,23 +104,12 @@ FSM.provider('stateMachine', function StateMachineProvider() {
     };
 
     /**
-     * Sets the JSON file to load the
-     * configuration.
-     *
-     * @param {String} json
-     */
-    this.load = function(json) {
-        _json = json;
-    };
-
-    /**
      * Gets a new instance of StateMachine specifying the
      * arguments passed to the provider.
      *
      * @type {Array}
      */
-    this.$get = ['$injector', '$http', '$q', function($injector, $http, $q) {
-        var strategy = (_json ? new AsyncStrategy(_json, $http, $q) : new SyncStrategy());
-        return new StateMachine($injector, strategy, new MachineConfiguration(_config));
+    this.$get = ['$injector', function($injector) {
+        return new StateMachine($injector, new SyncStrategy(), new MachineConfiguration(_config));
     }];
 });
