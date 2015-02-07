@@ -1,6 +1,10 @@
-describe('angular-state-machine-sync', function()
-{
+'use strict';
+
+describe('angular-state-machine-sync', function() {
+
+    // The state machine service.
     var _stateMachine;
+    // The injector service.
     var _injector;
 
     var _params = {
@@ -9,11 +13,10 @@ describe('angular-state-machine-sync', function()
 
     beforeEach(angular.mock.module('FSM'));
 
-    beforeEach(function()
-    {
+    beforeEach(function() {
         var fakeModule = angular.module('test.config', []);
-        fakeModule.config(['stateMachineProvider', function(stateMachineProvider)
-        {
+        fakeModule.config(['stateMachineProvider', function(stateMachineProvider) {
+            // Configures the state machine.
             stateMachineProvider.config({
                 init: {
                     transitions: {
@@ -70,19 +73,15 @@ describe('angular-state-machine-sync', function()
 
         module('FSM', 'test.config');
 
-        inject(function($injector)
-        {
+        inject(function($injector) {
             _stateMachine = $injector.get('stateMachine');
-
             _injector = $injector;
             spyOn(_injector, 'invoke').andCallThrough();
         });
     });
 
-    describe('ALL', function()
-    {
-        it('should change the state when sending correct message', function()
-        {
+    describe('ALL', function() {
+        it('should change the state when sending correct message', function() {
             _stateMachine.initialize();
 
             _stateMachine.send('first');
@@ -92,8 +91,7 @@ describe('angular-state-machine-sync', function()
             expect(_injector.invoke).toHaveBeenCalled();
         });
 
-        it('should not change the state when sending incorrect message', function()
-        {
+        it('should not change the state when sending incorrect message', function() {
             _stateMachine.initialize();
 
             _stateMachine.send('fake');
@@ -101,8 +99,7 @@ describe('angular-state-machine-sync', function()
             expect(_injector.invoke).not.toHaveBeenCalled();
         });
 
-        it('should return the states', function()
-        {
+        it('should return the states', function() {
             _stateMachine.initialize();
 
             var states = _stateMachine.getStates();
@@ -113,8 +110,7 @@ describe('angular-state-machine-sync', function()
             expect(states).not.toContain('fake');
         });
 
-        it('should return the messages', function()
-        {
+        it('should return the messages', function() {
             _stateMachine.initialize();
 
             var messages = _stateMachine.getMessages();
@@ -124,8 +120,7 @@ describe('angular-state-machine-sync', function()
             expect(messages).not.toContain('fake');
         });
 
-        it('should return true for the specific message', function()
-        {
+        it('should return true for the specific message', function() {
             _stateMachine.initialize();
 
             expect(_stateMachine.hasMessage('first')).toBeTruthy();
@@ -133,8 +128,7 @@ describe('angular-state-machine-sync', function()
             expect(_stateMachine.hasMessage('fake')).toBeFalsy();
         });
 
-        it('should return true if the message is available for current state', function()
-        {
+        it('should return true if the message is available for current state', function() {
             _stateMachine.initialize();
 
             expect(_stateMachine.isAvailable('first')).toBeTruthy();
@@ -148,8 +142,7 @@ describe('angular-state-machine-sync', function()
             expect(_stateMachine.isAvailable('fake')).toBeFalsy();
         });
 
-        it('should return the messages available in the current state', function()
-        {
+        it('should return the messages available in the current state', function() {
             _stateMachine.initialize();
 
             var messages = _stateMachine.available();

@@ -1,6 +1,6 @@
 /**
  * AngularJS service to implement a simple finite state machine.
- * @version v0.2.0 - 2014-01-27
+ * @version v0.2.0 - 2015-02-06
  * @link https://github.com/tafax/angular-state-machine
  * @author Matteo Tafani Alunno <matteo.tafanialunno@gmail.com>
  * @license MIT License, http://www.opensource.org/licenses/MIT
@@ -12,643 +12,263 @@
 
 // Source: src/angular-state-machine.js
 
+/**
+ * Merges two objects in one
+ * by adding the properties
+ * in the result.
+ *
+ * @param {Object} obj1
+ * @param {Object} obj2
+ * @returns {Object}
+ */
+Object.merge = function(obj1, obj2) {
+    var result = {};
+
+    for(var i in obj1) {
+        result[i] = obj1[i];
+
+        if((i in obj2) && (typeof obj1[i] === "object") && (i !== null))
+            result[i] = Object.merge(obj1[i],obj2[i]);
+    }
+
+    for(var j in obj2) {
+        if(j in result)
+            continue;
+
+        result[j] = obj2[j];
+    }
+
+    return result;
+};
+
 var FSM = angular.module('FSM', []);
 
+// Source: src/services/machine-configuration.js
+
+/**
+ * Service to handle the machine configuration.
+ * It provides the ability to translate the rough JSON-like configuration
+ * in a more comfortable one used by the machine.
+ *
+ * @param {Object} config The rough configuration.
+ * @constructor
+ */
+function MachineConfiguration(config) {
+    /**
+     * The states available for the machine.
+     *
+     * @type {Object}
+     * @private
+     */
+    var _states = {};
+
+    /**
+     * The messages available for transitions.
+     *
+     * @type {Array}
+     * @private
+     */
+    var _messages = [];
+
+    /**
+     * The transitions of the machine.
+     *
+     * @type {Object}
+     * @private
+     */
+    var _transitions = {};
+
+    /**
+     * Gets the states of the machine.
+     *
+     * @returns {Object}
+     */
+    this.getStates = function() {
+        return _states;
+    };
+
+    /**
+     * Gets the messages available.
+     *
+     * @returns {Array}
+     */
+    this.getMessages = function() {
+        return _messages;
+    };
+
+    /**
+     * Gets the transitions of the machine.
+     *
+     * @returns {Object}
+     */
+    this.getTransitions = function() {
+        return _transitions;
+    };
+
+    /**
+     * Extends the current configuration.
+     * It is useful to create distributed configurations sets.
+     *
+     * @returns {String}
+     */
+    this.extend = function(extension) {
+        config = Object.merge(config, extension);
+    };
+
+    /**
+     * Configures the machine with the specifications in config.
+     * Creates the states, the messages and the
+     * transitions which are available to work with.
+     */
+    this.configure = function() {
+        // Checks if the init state is defined.
+        if(!config.hasOwnProperty('init')) {
+            throw 'You have to create \'init\' state.';
+        }
+
+        // Performs a loop over all states.
+        for(var i in config) {
+            if(config.hasOwnProperty(i)) {
+                // Each key in the object is a state and the key is the name of the state.
+                var state = config[i];
+                state.name = i;
+
+                var transitions = {};
+                if(state.hasOwnProperty('transitions')) {
+                    // Retrieves all state transitions.
+                    transitions = state['transitions'];
+
+                    // Performs a loop over all defined transitions.
+                    for(var j in transitions) {
+                        if(transitions.hasOwnProperty(j)) {
+                            // Each key in the transitions block is a message to change
+                            // the state of the machine. It adds the message to the available ones.
+                            if(_messages.indexOf(j) < 0) {
+                                _messages.push(j);
+                            }
+                        }
+                    }
+
+                    // Removes the transitions in the state definition.
+                    delete state.transitions;
+                }
+
+                // Creates the transition if it doesn't exist.
+                if(!_transitions.hasOwnProperty(i)) {
+                    _transitions[i] = {};
+                }
+
+                // Merges the transition with the parsed one.
+                angular.extend(_transitions[i], transitions);
+
+                // Creates the state if it doesn't exist.
+                if(!_states.hasOwnProperty(i)) {
+                    _states[i] = {};
+                }
+
+                // Merges the state with the parsed one.
+                angular.extend(_states[i], state);
+            }
+        }
+    };
+}
+
+
 // Source: src/services/state-machine.js
+
+/**
+ * Class to provide the functionality to manage the
+ * state machine.
+ *
+ * @param {Object} $injector
+ * @param {MachineStrategy} strategy
+ * @param {MachineConfiguration} machineConfiguration
+ * @constructor
+ */
+function StateMachine($injector, strategy, machineConfiguration) {
+    /**
+     * Initializes the machine and sets the current state
+     * with the init state.
+     */
+    this.initialize = function() {
+        strategy.initialize(machineConfiguration);
+    };
+
+    /**
+     * Gets an array of the states.
+     *
+     * @returns {Array}
+     */
+    this.getStates = function() {
+        return strategy.getStates(machineConfiguration);
+    };
+
+    /**
+     * Gets an array of the messages.
+     *
+     * @returns {Array}
+     */
+    this.getMessages = function() {
+        return strategy.getMessages(machineConfiguration);
+    };
+
+    /**
+     * Checks if the specific message is one of the
+     * messages of the machine.
+     *
+     * @param {String} message
+     * @returns {boolean}
+     */
+    this.hasMessage = function(message) {
+        return strategy.hasMessage(machineConfiguration, message);
+    };
+
+    /**
+     * Checks if the specific message is available
+     * for the current state.
+     *
+     * @param {String} message
+     * @returns {boolean}
+     */
+    this.isAvailable = function(message) {
+        return strategy.isAvailable(machineConfiguration, message);
+    };
+
+    /**
+     * Gets an array of the messages available for
+     * the current state.
+     *
+     * @returns {Array}
+     */
+    this.available = function() {
+        return strategy.available(machineConfiguration);
+    };
+
+    /**
+     * Sends a message to the state machine and changes
+     * the current state according to the transitions.
+     *
+     * @param {String} message
+     * @param {Object} [parameters]
+     */
+    this.send = function(message, parameters) {
+        strategy.send($injector, machineConfiguration, message, parameters);
+    };
+}
 
 /**
  * The state machine provider configures the machine
  * to use specification from JSON file and/or using
  * async/sync mode.
  */
-FSM.provider('stateMachine', function StateMachineProvider()
-{
-    /**
-     * Merges two objects in one
-     * by adding the properties
-     * in the result.
-     *
-     * @param {Object} obj1
-     * @param {Object} obj2
-     * @returns {Object}
-     */
-    Object.merge = function(obj1, obj2)
-    {
-        var result = {};
-
-        for(var i in obj1)
-        {
-            result[i] = obj1[i];
-
-            if((i in obj2) && (typeof obj1[i] === "object") && (i !== null))
-                result[i] = Object.merge(obj1[i],obj2[i]);
-        }
-
-        for(var j in obj2)
-        {
-            if(j in result)
-                continue;
-
-            result[j] = obj2[j];
-        }
-
-        return result;
-    };
-
-    /**
-     * Class to provide the current machine
-     * configuration.
-     *
-     * @param {Object} config
-     * @param {String} json
-     * @constructor
-     */
-    function MachineConfiguration(config, json)
-    {
-        /**
-         * Gets the JSON string which represents
-         * the file for configuration.
-         *
-         * @returns {String}
-         */
-        this.getJson = function()
-        {
-            return json;
-        };
-
-        /**
-         * Extends the configuration provided
-         * by the provider with the object
-         * specified.
-         *
-         * @param {Object} configuration
-         */
-        this.extend = function(configuration)
-        {
-            config = Object.merge(config, configuration);
-        };
-
-        /**
-         * The states available for the machine.
-         *
-         * @type {Object}
-         * @private
-         */
-        var _states = {};
-
-        /**
-         * Gets the states of the machine.
-         *
-         * @returns {Object}
-         */
-        this.getStates = function()
-        {
-            return _states;
-        };
-
-        /**
-         * The messages available for transitions.
-         *
-         * @type {Array}
-         * @private
-         */
-        var _messages = [];
-
-        /**
-         * Gets the messages available.
-         *
-         * @returns {Array}
-         */
-        this.getMessages = function()
-        {
-            return _messages;
-        };
-
-        /**
-         * The transitions of the machine.
-         *
-         * @type {Object}
-         * @private
-         */
-        var _transitions = {};
-
-        /**
-         * Gets the transitions of the machine.
-         *
-         * @returns {Object}
-         */
-        this.getTransitions = function()
-        {
-            return _transitions;
-        };
-
-        /**
-         * Configures the machine with the specifications in config.
-         * Creates the states, the messages and the
-         * transitions which are available to work with.
-         */
-        this.configure = function()
-        {
-            if(!config.hasOwnProperty('init'))
-                throw 'You have to create \'init\' state.';
-
-            for(var i in config)
-            {
-                var state = config[i];
-                state.name = i;
-
-                var transitions = {};
-                if(state.hasOwnProperty('transitions'))
-                {
-                    transitions = state['transitions'];
-
-                    for(var j in transitions)
-                    {
-                        if(_messages.indexOf(j) < 0)
-                            _messages.push(j);
-                    }
-
-                    delete state.transitions;
-                }
-
-                if(!_transitions.hasOwnProperty(i))
-                    _transitions[i] = {};
-
-                angular.extend(_transitions[i], transitions);
-
-                if(!_states.hasOwnProperty(i))
-                    _states[i] = {};
-
-                angular.extend(_states[i], state);
-            }
-        };
-    }
-
-    /////////////////////////////////////////////////////////////////////////////////
-
-    function MachineStrategy(){}
-
-    MachineStrategy.prototype.initialize = function(machineConfiguration){};
-    MachineStrategy.prototype.getStates = function(machineConfiguration){};
-    MachineStrategy.prototype.getMessages = function(machineConfiguration){};
-    MachineStrategy.prototype.hasMessage = function(machineConfiguration, message){};
-    MachineStrategy.prototype.isAvailable = function(machineConfiguration, message){};
-    MachineStrategy.prototype.available = function(machineConfiguration){};
-    MachineStrategy.prototype.send = function($injector, machineConfiguration, message, parameters){};
-
-    /////////////////////////////////////////////////////////////////////////////////
-
-    /**
-     * Class to provide the machine functionality
-     * in synchronous mode.
-     *
-     * @constructor
-     */
-    function SyncStrategy()
-    {
-        MachineStrategy.call(this);
-
-        this.current = null;
-    }
-
-    MachineStrategy.prototype = new MachineStrategy();
-
-    /**
-     * Initializes the machine and sets the current state
-     * with the init state.
-     *
-     * @param {MachineConfiguration} machineConfiguration
-     */
-    SyncStrategy.prototype.initialize = function(machineConfiguration)
-    {
-        machineConfiguration.configure();
-        var states = machineConfiguration.getStates();
-        this.current = states['init'];
-        this.current.params = {};
-    };
-
-    /**
-     * Gets an array of the states.
-     *
-     * @param {MachineConfiguration} machineConfiguration
-     * @returns {Array}
-     */
-    SyncStrategy.prototype.getStates = function(machineConfiguration)
-    {
-        return Object.keys(machineConfiguration.getStates());
-    };
-
-    /**
-     * Gets an array of the messages.
-     *
-     * @param {MachineConfiguration} machineConfiguration
-     * @returns {Array}
-     */
-    SyncStrategy.prototype.getMessages = function(machineConfiguration)
-    {
-        return machineConfiguration.getMessages();
-    };
-
-    /**
-     * Checks if the specific message is one of the
-     * messages of the machine.
-     *
-     * @param {MachineConfiguration} machineConfiguration
-     * @param {String} message
-     * @returns {boolean}
-     */
-    SyncStrategy.prototype.hasMessage = function(machineConfiguration, message)
-    {
-        var messages = machineConfiguration.getMessages();
-        return (messages.indexOf(message) >= 0);
-    };
-
-    /**
-     * Checks if the specific message is available
-     * for the current state.
-     *
-     * @param {MachineConfiguration} machineConfiguration
-     * @param {String} message
-     * @returns {boolean}
-     */
-    SyncStrategy.prototype.isAvailable = function(machineConfiguration, message)
-    {
-        var transitions = machineConfiguration.getTransitions();
-        var edges = transitions[this.current.name];
-        return edges.hasOwnProperty(message);
-    };
-
-    /**
-     * Gets an array of the messages available for
-     * the current state.
-     *
-     * @param {MachineConfiguration} machineConfiguration
-     * @returns {Array}
-     */
-    SyncStrategy.prototype.available = function(machineConfiguration)
-    {
-        var transitions = machineConfiguration.getTransitions();
-        var edges = transitions[this.current.name];
-        return Object.keys(edges);
-    };
-
-    /**
-     * Sends a message to the state machine and changes
-     * the current state according to the transitions.
-     *
-     * @param {Object} $injector
-     * @param {MachineConfiguration} machineConfiguration
-     * @param {String} message
-     * @param {Object} [parameters]
-     */
-    SyncStrategy.prototype.send = function($injector, machineConfiguration, message, parameters)
-    {
-        if(machineConfiguration.getMessages().indexOf(message) >= 0)
-        {
-            var transitions = machineConfiguration.getTransitions();
-
-            if(transitions.hasOwnProperty(this.current.name))
-            {
-                var edges = transitions[this.current.name];
-                if(edges.hasOwnProperty(message))
-                {
-                    var edge = edges[message];
-
-                    if(edge instanceof Array)
-                    {
-                        var passed = [];
-                        for(var i in edge)
-                        {
-                            var transition = edge[i];
-                            if($injector.invoke(transition.predicate, this, this.current))
-                                passed.push(transition.to);
-                        }
-
-                        if(passed.length > 1)
-                            throw 'Unable to execute transition in state \'' + this.current.name + '\'. ' +
-                                'Two predicates was passed.';
-
-                        edge = passed[0];
-                    }
-
-                    var states = machineConfiguration.getStates();
-                    var state = states[edge];
-
-                    var args = {};
-                    args = Object.merge(args, this.current);
-
-                    if(parameters)
-                        args.params = Object.merge(args.params, parameters);
-
-                    var result = $injector.invoke(state.action, this, args);
-
-                    if(!result && this.current.params)
-                        state.params = this.current.params;
-                    else
-                    {
-                        if(!state.hasOwnProperty('params'))
-                            state.params = {};
-
-                        state.params = Object.merge(state.params, result);
-                    }
-
-                    this.current = state;
-                }
-            }
-        }
-    };
-
-    /////////////////////////////////////////////////////////////////////////////////
-
-    /**
-     * Class to provide the machine functionality
-     * in asynchronous mode.
-     *
-     * @param {Object} $http
-     * @param {Object} $q
-     * @constructor
-     */
-    function AsyncStrategy($http, $q)
-    {
-        SyncStrategy.call(this);
-
-        this.http = $http;
-        this.q = $q;
-        this.promise = null;
-    }
-
-    /**
-     * Initializes the prototype.
-     *
-     * @type {SyncStrategy}
-     */
-    AsyncStrategy.prototype = new SyncStrategy();
-
-    /**
-     * Initializes the machine and sets the current state
-     * with the init state.
-     *
-     * @param {MachineConfiguration} machineConfiguration
-     */
-    AsyncStrategy.prototype.initialize = function(machineConfiguration)
-    {
-        this.promise = this.http({
-            method: 'GET',
-            url: 'file://' + machineConfiguration.getJson()
-        }).then(function(response)
-            {
-                machineConfiguration.extend(response.data);
-                SyncStrategy.prototype.initialize(machineConfiguration);
-            },
-            function(response)
-            {
-                throw 'Unable to load \'' + json + '\'. The server responds with status ' + response.status + '.';
-            });
-    };
-
-    /**
-     * Gets an array of the states.
-     *
-     * @param {MachineConfiguration} machineConfiguration
-     * @returns {Array}
-     */
-    AsyncStrategy.prototype.getStates = function(machineConfiguration)
-    {
-        if(null !== this.promise)
-        {
-            var deferred = this.q.defer();
-
-            this.promise.then(function()
-            {
-                deferred.resolve(SyncStrategy.prototype.getStates(machineConfiguration));
-            });
-
-            return deferred.promise;
-        }
-        else
-            throw 'You have to initialize the machine.'
-    };
-
-    /**
-     * Gets an array of the messages.
-     *
-     * @param {MachineConfiguration} machineConfiguration
-     * @returns {Array}
-     */
-    AsyncStrategy.prototype.getMessages = function(machineConfiguration)
-    {
-        if(null !== this.promise)
-        {
-            var deferred = this.q.defer();
-
-            this.promise.then(function()
-            {
-                deferred.resolve(SyncStrategy.prototype.getMessages(machineConfiguration));
-            });
-
-            return deferred.promise;
-        }
-        else
-            throw 'You have to initialize the machine.'
-    };
-
-    /**
-     * Checks if the specific message is one of the
-     * messages of the machine.
-     *
-     * @param {MachineConfiguration} machineConfiguration
-     * @param {String} message
-     * @returns {boolean}
-     */
-    AsyncStrategy.prototype.hasMessage = function(machineConfiguration, message)
-    {
-        if(null !== this.promise)
-        {
-            var deferred = this.q.defer();
-
-            this.promise.then(function()
-            {
-                deferred.resolve(SyncStrategy.prototype.hasMessage(machineConfiguration, message));
-            });
-
-            return deferred.promise;
-        }
-        else
-            throw 'You have to initialize the machine.'
-    };
-
-    /**
-     * Checks if the specific message is available
-     * for the current state.
-     *
-     * @param {MachineConfiguration} machineConfiguration
-     * @param {String} message
-     * @returns {boolean}
-     */
-    AsyncStrategy.prototype.isAvailable = function(machineConfiguration, message)
-    {
-        if(null !== this.promise)
-        {
-            var deferred = this.q.defer();
-
-            this.promise.then(function()
-            {
-                deferred.resolve(SyncStrategy.prototype.isAvailable(machineConfiguration, message));
-            });
-
-            return deferred.promise;
-        }
-        else
-            throw 'You have to initialize the machine.'
-    };
-
-    /**
-     * Gets an array of the messages available for
-     * the current state.
-     *
-     * @param {MachineConfiguration} machineConfiguration
-     * @returns {Array}
-     */
-    AsyncStrategy.prototype.available = function(machineConfiguration)
-    {
-        if(null !== this.promise)
-        {
-            var deferred = this.q.defer();
-
-            this.promise.then(function()
-            {
-                deferred.resolve(SyncStrategy.prototype.available(machineConfiguration));
-            });
-
-            return deferred.promise;
-        }
-        else
-            throw 'You have to initialize the machine.'
-    };
-
-    /**
-     * Sends a message to the state machine and changes
-     * the current state according to the transitions.
-     *
-     * @param {Object} $injector
-     * @param {MachineConfiguration} machineConfiguration
-     * @param {String} message
-     * @param {Object} [parameters]
-     */
-    AsyncStrategy.prototype.send = function($injector, machineConfiguration, message, parameters)
-    {
-        if(null !== this.promise)
-        {
-            var deferred = this.q.defer();
-
-            this.promise.then(function()
-            {
-                deferred.resolve(SyncStrategy.prototype.send($injector, machineConfiguration, message, parameters));
-            });
-
-            return deferred.promise;
-        }
-        else
-            throw 'You have to initialize the machine.'
-    };
-
-    /////////////////////////////////////////////////////////////////////////////////
-
-    /**
-     * Class to provide the functionality to manage the
-     * state machine.
-     *
-     * @param {Object} $injector
-     * @param {MachineStrategy} strategy
-     * @param {MachineConfiguration} machineConfiguration
-     * @constructor
-     */
-    function StateMachine($injector, strategy, machineConfiguration)
-    {
-        /**
-         * Initializes the machine and sets the current state
-         * with the init state.
-         */
-        this.initialize = function()
-        {
-            strategy.initialize(machineConfiguration);
-        };
-
-        /**
-         * Gets an array of the states.
-         *
-         * @returns {Array}
-         */
-        this.getStates = function()
-        {
-            return strategy.getStates(machineConfiguration);
-        };
-
-        /**
-         * Gets an array of the messages.
-         *
-         * @returns {Array}
-         */
-        this.getMessages = function()
-        {
-            return strategy.getMessages(machineConfiguration);
-        };
-
-        /**
-         * Checks if the specific message is one of the
-         * messages of the machine.
-         *
-         * @param {String} message
-         * @returns {boolean}
-         */
-        this.hasMessage = function(message)
-        {
-            return strategy.hasMessage(machineConfiguration, message);
-        };
-
-        /**
-         * Checks if the specific message is available
-         * for the current state.
-         *
-         * @param {String} message
-         * @returns {boolean}
-         */
-        this.isAvailable = function(message)
-        {
-            return strategy.isAvailable(machineConfiguration, message);
-        };
-
-        /**
-         * Gets an array of the messages available for
-         * the current state.
-         *
-         * @returns {Array}
-         */
-        this.available = function()
-        {
-            return strategy.available(machineConfiguration);
-        };
-
-        /**
-         * Sends a message to the state machine and changes
-         * the current state according to the transitions.
-         *
-         * @param {String} message
-         * @param {Object} [parameters]
-         */
-        this.send = function(message, parameters)
-        {
-            strategy.send($injector, machineConfiguration, message, parameters);
-        };
-    }
-
+FSM.provider('stateMachine', function StateMachineProvider() {
     /**
      * JSON file to load configuration.
      *
      * @type {String|null}
      * @private
      */
-    var _json = null;
+    var _json;
 
     /**
      * The state machine configuration.
@@ -656,16 +276,7 @@ FSM.provider('stateMachine', function StateMachineProvider()
      * @type {Object}
      * @private
      */
-    var _config = {};
-
-    /**
-     * Specifies if the machine is in
-     * asynchronous mode.
-     *
-     * @type {boolean}
-     * @private
-     */
-    var _async = false;
+    var _config;
 
     /**
      * Sets the configuration for the state
@@ -673,8 +284,7 @@ FSM.provider('stateMachine', function StateMachineProvider()
      *
      * @param {Object} config
      */
-    this.config = function(config)
-    {
+    this.config = function(config) {
         _config = config;
     };
 
@@ -684,10 +294,8 @@ FSM.provider('stateMachine', function StateMachineProvider()
      *
      * @param {String} json
      */
-    this.load = function(json)
-    {
+    this.load = function(json) {
         _json = json;
-        _async = true;
     };
 
     /**
@@ -696,11 +304,387 @@ FSM.provider('stateMachine', function StateMachineProvider()
      *
      * @type {Array}
      */
-    this.$get = ['$injector', function($injector)
-    {
-        //var strategy = (_async ? new AsyncStrategy($http, $q) : new SyncStrategy());
-        var strategy = (_async ? null : new SyncStrategy());
-
-        return new StateMachine($injector, strategy, new MachineConfiguration(_config, _json));
+    this.$get = ['$injector', '$http', '$q', function($injector, $http, $q) {
+        var strategy = (_json ? new AsyncStrategy(_json, $http, $q) : new SyncStrategy());
+        return new StateMachine($injector, strategy, new MachineConfiguration(_config));
     }];
 });
+
+// Source: src/strategies/async-strategy.js
+
+/**
+ * Class to provide the machine functionality
+ * in asynchronous mode.
+ *
+ * @param {String} json
+ * @param {Object} $http
+ * @param {Object} $q
+ * @constructor
+ */
+function AsyncStrategy(json, $http, $q) {
+    SyncStrategy.call(this);
+
+    this.json = json;
+    this.http = $http;
+    this.q = $q;
+    this.promise = null;
+}
+
+/**
+ * Initializes the prototype.
+ *
+ * @type {SyncStrategy}
+ */
+AsyncStrategy.prototype = new SyncStrategy();
+
+/**
+ * Initializes the machine and sets the current state
+ * with the init state.
+ *
+ * @param {MachineConfiguration} machineConfiguration
+ */
+AsyncStrategy.prototype.initialize = function(machineConfiguration) {
+    this.promise = this.http(
+        {
+            method: 'GET',
+            url: this.json
+        }
+    ).then(
+        function(response) {
+            machineConfiguration.extend(response.data);
+            SyncStrategy.prototype.initialize(machineConfiguration);
+        },
+        function(response) {
+            throw 'Unable to load \'' + json + '\'. The server responds with status ' + response.status + '.';
+        }
+    );
+};
+
+/**
+ * Gets an array of the states.
+ *
+ * @param {MachineConfiguration} machineConfiguration
+ * @returns {Array}
+ */
+AsyncStrategy.prototype.getStates = function(machineConfiguration) {
+    if(null !== this.promise) {
+        var deferred = this.q.defer();
+
+        this.promise.then(function() {
+            deferred.resolve(SyncStrategy.prototype.getStates(machineConfiguration));
+        });
+
+        return deferred.promise;
+    } else {
+        throw 'You have to initialize the machine.'
+    }
+};
+
+/**
+ * Gets an array of the messages.
+ *
+ * @param {MachineConfiguration} machineConfiguration
+ * @returns {Array}
+ */
+AsyncStrategy.prototype.getMessages = function(machineConfiguration) {
+    if(null !== this.promise) {
+        var deferred = this.q.defer();
+
+        this.promise.then(function() {
+            deferred.resolve(SyncStrategy.prototype.getMessages(machineConfiguration));
+        });
+
+        return deferred.promise;
+    } else {
+        throw 'You have to initialize the machine.'
+    }
+};
+
+/**
+ * Checks if the specific message is one of the
+ * messages of the machine.
+ *
+ * @param {MachineConfiguration} machineConfiguration
+ * @param {String} message
+ * @returns {boolean}
+ */
+AsyncStrategy.prototype.hasMessage = function(machineConfiguration, message) {
+    if(null !== this.promise) {
+        var deferred = this.q.defer();
+
+        this.promise.then(function() {
+            deferred.resolve(SyncStrategy.prototype.hasMessage(machineConfiguration, message));
+        });
+
+        return deferred.promise;
+    } else {
+        throw 'You have to initialize the machine.'
+    }
+};
+
+/**
+ * Checks if the specific message is available
+ * for the current state.
+ *
+ * @param {MachineConfiguration} machineConfiguration
+ * @param {String} message
+ * @returns {boolean}
+ */
+AsyncStrategy.prototype.isAvailable = function(machineConfiguration, message) {
+    if(null !== this.promise) {
+        var deferred = this.q.defer();
+
+        this.promise.then(function() {
+            deferred.resolve(SyncStrategy.prototype.isAvailable(machineConfiguration, message));
+        });
+
+        return deferred.promise;
+    } else {
+        throw 'You have to initialize the machine.'
+    }
+};
+
+/**
+ * Gets an array of the messages available for
+ * the current state.
+ *
+ * @param {MachineConfiguration} machineConfiguration
+ * @returns {Array}
+ */
+AsyncStrategy.prototype.available = function(machineConfiguration) {
+    if(null !== this.promise) {
+        var deferred = this.q.defer();
+
+        this.promise.then(function() {
+            deferred.resolve(SyncStrategy.prototype.available(machineConfiguration));
+        });
+
+        return deferred.promise;
+    }
+    else {
+        throw 'You have to initialize the machine.'
+    }
+};
+
+/**
+ * Sends a message to the state machine and changes
+ * the current state according to the transitions.
+ *
+ * @param {Object} $injector
+ * @param {MachineConfiguration} machineConfiguration
+ * @param {String} message
+ * @param {Object} [parameters]
+ */
+AsyncStrategy.prototype.send = function($injector, machineConfiguration, message, parameters) {
+    if(null !== this.promise) {
+        var deferred = this.q.defer();
+
+        this.promise.then(function() {
+            deferred.resolve(SyncStrategy.prototype.send($injector, machineConfiguration, message, parameters));
+        });
+
+        return deferred.promise;
+    }
+    else {
+        throw 'You have to initialize the machine.'
+    }
+};
+
+
+// Source: src/strategies/machine-strategy.js
+
+/**
+ * Defines the base class to represent a machine core strategy.
+ * The machine strategy is the way how the machine itself resolves
+ * the transitions to go ahead state by state.
+ *
+ * @constructor
+ */
+function MachineStrategy(){}
+
+MachineStrategy.prototype.initialize = function(machineConfiguration){};
+MachineStrategy.prototype.getStates = function(machineConfiguration){};
+MachineStrategy.prototype.getMessages = function(machineConfiguration){};
+MachineStrategy.prototype.hasMessage = function(machineConfiguration, message){};
+MachineStrategy.prototype.isAvailable = function(machineConfiguration, message){};
+MachineStrategy.prototype.available = function(machineConfiguration){};
+MachineStrategy.prototype.send = function($injector, machineConfiguration, message, parameters){};
+
+
+// Source: src/strategies/sync-strategy.js
+
+/**
+ * Class to provide the machine functionality
+ * in synchronous mode.
+ *
+ * @constructor
+ */
+function SyncStrategy()
+{
+    MachineStrategy.call(this);
+
+    this.current = null;
+}
+
+/**
+ * Initializes the prototype.
+ *
+ * @type {MachineStrategy}
+ */
+MachineStrategy.prototype = new MachineStrategy();
+
+/**
+ * Initializes the machine and sets the current state with the init state.
+ *
+ * @param {MachineConfiguration} machineConfiguration
+ */
+SyncStrategy.prototype.initialize = function(machineConfiguration)
+{
+    machineConfiguration.configure();
+    var states = machineConfiguration.getStates();
+    this.current = states['init'];
+    this.current.params = {};
+};
+
+/**
+ * Gets an array of the states.
+ *
+ * @param {MachineConfiguration} machineConfiguration
+ * @returns {Array}
+ */
+SyncStrategy.prototype.getStates = function(machineConfiguration)
+{
+    return Object.keys(machineConfiguration.getStates());
+};
+
+/**
+ * Gets an array of the messages.
+ *
+ * @param {MachineConfiguration} machineConfiguration
+ * @returns {Array}
+ */
+SyncStrategy.prototype.getMessages = function(machineConfiguration)
+{
+    return machineConfiguration.getMessages();
+};
+
+/**
+ * Checks if the specific message is one of the messages of the machine.
+ *
+ * @param {MachineConfiguration} machineConfiguration
+ * @param {String} message
+ * @returns {boolean}
+ */
+SyncStrategy.prototype.hasMessage = function(machineConfiguration, message)
+{
+    var messages = machineConfiguration.getMessages();
+    return (messages.indexOf(message) >= 0);
+};
+
+/**
+ * Checks if the specific message is available for the current state.
+ *
+ * @param {MachineConfiguration} machineConfiguration
+ * @param {String} message
+ * @returns {boolean}
+ */
+SyncStrategy.prototype.isAvailable = function(machineConfiguration, message)
+{
+    var transitions = machineConfiguration.getTransitions();
+    var edges = transitions[this.current.name];
+    return edges.hasOwnProperty(message);
+};
+
+/**
+ * Gets an array of the messages available for the current state.
+ *
+ * @param {MachineConfiguration} machineConfiguration
+ * @returns {Array}
+ */
+SyncStrategy.prototype.available = function(machineConfiguration)
+{
+    var transitions = machineConfiguration.getTransitions();
+    var edges = transitions[this.current.name];
+    return Object.keys(edges);
+};
+
+/**
+ * Sends a message to the state machine and changes
+ * the current state according to the transitions.
+ *
+ * @param {Object} $injector
+ * @param {MachineConfiguration} machineConfiguration
+ * @param {String} message
+ * @param {Object} [parameters]
+ */
+SyncStrategy.prototype.send = function($injector, machineConfiguration, message, parameters)
+{
+    // Checks if the configuration has the message and it is available for the current state.
+    if(this.hasMessage(machineConfiguration, message) && this.isAvailable(machineConfiguration, message)) {
+        // Retrieves all transitions.
+        var transitions = machineConfiguration.getTransitions();
+
+        // Gets all the edges of the current state.
+        // The edges are only outgoing.
+        var edges = transitions[this.current.name];
+        // Gets the edge related with the message.
+        var edge = edges[message];
+
+        // If the edge is an array it defines a list of transition that should have a predicate
+        // and a final state. The predicate is a function that returns true or false and for each message
+        // only one predicate should return true.
+        if(edge instanceof Array) {
+            var passed = [];
+            // Checks the predicate for each transition in the edge.
+            for(var i in edge) {
+                var transition = edge[i];
+                // Checks predicate and if it passes add the final state to the passed ones.
+                if($injector.invoke(transition.predicate, this, this.current)) {
+                    passed.push(transition.to);
+                }
+            }
+
+            // Checks if more than one predicate returned true. It is an error.
+            if(passed.length > 1) {
+                throw 'Unable to execute transition in state \'' + this.current.name + '\'. ' +
+                'More than one predicate is passed.';
+            }
+
+            // Replace the edge with the unique finale state.
+            edge = passed[0];
+        }
+
+        // Retrieves the next state that will be the final one for this transition.
+        var states = machineConfiguration.getStates();
+        var state = states[edge];
+
+        // Creates a copy of the current state. It is more secure against accidental changes.
+        var args = {};
+        args = Object.merge(args, this.current);
+
+        // If some parameters are provided it merges them into the current state.
+        if(parameters) {
+            args.params = Object.merge(args.params, parameters);
+        }
+
+        // Executes the action defined in the state by passing the current state with the parameters.
+        var result = $injector.invoke(state.action, this, args);
+
+        // Checks the result of the action and sets the parameters of the new current state.
+        if(!result && this.current.params) {
+            state.params = this.current.params;
+        }
+        else {
+            // Creates the parameters if the state doesn't have them.
+            if(!state.hasOwnProperty('params')) {
+                state.params = {};
+            }
+
+            // Merges the state parameters with the result.
+            state.params = Object.merge(state.params, result);
+        }
+
+        // Sets the new current state.
+        this.current = state;
+    }
+};

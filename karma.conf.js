@@ -14,6 +14,10 @@ module.exports = function(config) {
 
         // list of files / patterns to load in the browser
         files: [
+            'src/services/machine-configuration.js',
+            'src/strategies/machine-strategy.js',
+            'src/strategies/sync-strategy.js',
+            'src/strategies/async-strategy.js',
             'lib/angular/angular.min.js',
             'lib/angular-mocks/angular-mocks.js',
             'src/angular-state-machine.js',
