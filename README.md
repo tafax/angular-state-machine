@@ -1,4 +1,4 @@
-#AngularJS State Machine [![Build Status](https://travis-ci.org/tafax/angular-state-machine.png?branch=master)](https://travis-ci.org/tafax/angular-state-machine)
+#AngularJS State Machine [![Build Status](https://travis-ci.org/tafax/angular-state-machine.svg?branch=master)](https://travis-ci.org/tafax/angular-state-machine)
 
 It is an AngularJS module to implement a [Finite-State Machine](http://en.wikipedia.org/wiki/Finite-state_machine).
 It can be useful in many situations where the state of an app(or module) follows specific paths. For example, it is very useful to
