@@ -138,7 +138,7 @@ Anyway, please respect the coding standard of the rest of code and remember to a
 #License
 The MIT License (MIT)
 
-Copyright (c) 2014 Matteo Tafani Alunno <matteo.tafanialunno@gmail.com>
+Copyright (c) 2014 Matteo Tafani Alunno
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
