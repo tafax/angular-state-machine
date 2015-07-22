@@ -4,12 +4,13 @@
  * Class to provide the functionality to manage the
  * state machine.
  *
+ * @param {Object} $q
  * @param {Object} $injector
  * @param {MachineStrategy} strategy
  * @param {MachineConfiguration} machineConfiguration
  * @constructor
  */
-function StateMachine($injector, strategy, machineConfiguration) {
+function StateMachine($q, $injector, strategy, machineConfiguration) {
     /**
      * Initializes the machine and sets the current state
      * with the init state.
@@ -74,9 +75,11 @@ function StateMachine($injector, strategy, machineConfiguration) {
      *
      * @param {String} message
      * @param {Object} [parameters]
+     *
+     * @return {Promise}
      */
     this.send = function(message, parameters) {
-        strategy.send($injector, machineConfiguration, message, parameters);
+        return strategy.send($q, $injector, machineConfiguration, message, parameters);
     };
 }
 
@@ -109,7 +112,7 @@ FSM.provider('stateMachine', function StateMachineProvider() {
      *
      * @type {Array}
      */
-    this.$get = ['$injector', function($injector) {
-        return new StateMachine($injector, new SyncStrategy(), new MachineConfiguration(_config));
+    this.$get = ['$q', '$injector', function($q, $injector) {
+        return new StateMachine($q, $injector, new SyncStrategy(), new MachineConfiguration(_config));
     }];
 });

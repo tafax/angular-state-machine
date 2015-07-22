@@ -15,4 +15,4 @@ MachineStrategy.prototype.getMessages = function(machineConfiguration){};
 MachineStrategy.prototype.hasMessage = function(machineConfiguration, message){};
 MachineStrategy.prototype.isAvailable = function(machineConfiguration, message){};
 MachineStrategy.prototype.available = function(machineConfiguration){};
-MachineStrategy.prototype.send = function($injector, machineConfiguration, message, parameters){};
+MachineStrategy.prototype.send = function($q, $injector, machineConfiguration, message, parameters){};

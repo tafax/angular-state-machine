@@ -91,12 +91,13 @@ SyncStrategy.prototype.available = function(machineConfiguration) {
  * Sends a message to the state machine and changes
  * the current state according to the transitions.
  *
+ * @param {Object} $q
  * @param {Object} $injector
  * @param {MachineConfiguration} machineConfiguration
  * @param {String} message
  * @param {Object} [parameters]
  */
-SyncStrategy.prototype.send = function($injector, machineConfiguration, message, parameters) {
+SyncStrategy.prototype.send = function($q, $injector, machineConfiguration, message, parameters) {
     // Checks if the configuration has the message and it is available for the current state.
     if(this.hasMessage(machineConfiguration, message) && this.isAvailable(machineConfiguration, message)) {
         // Retrieves all transitions.
@@ -146,24 +147,24 @@ SyncStrategy.prototype.send = function($injector, machineConfiguration, message,
             args.params = Object.merge(args.params, parameters);
         }
 
+        var _this = this;
         // Executes the action defined in the state by passing the current state with the parameters.
-        var result = $injector.invoke(state.action, this, args);
+        return $q.when($injector.invoke(state.action, this, args)).then(function(result){
+            // Checks the result of the action and sets the parameters of the new current state.
+            if(!result && _this.current.params) {
+                state.params = _this.current.params;
+            } else if(result) {
+                // Creates the parameters if the state doesn't have them.
+                if(!state.hasOwnProperty('params')) {
+                    state.params = {};
+                }
 
-        // Checks the result of the action and sets the parameters of the new current state.
-        if(!result && this.current.params) {
-            state.params = this.current.params;
-        }
-        else {
-            // Creates the parameters if the state doesn't have them.
-            if(!state.hasOwnProperty('params')) {
-                state.params = {};
+                // Merges the state parameters with the result.
+                state.params = Object.merge(state.params, result);
             }
 
-            // Merges the state parameters with the result.
-            state.params = Object.merge(state.params, result);
-        }
-
-        // Sets the new current state.
-        this.current = state;
+            // Sets the new current state.
+            _this.current = state;
+        });
     }
 };
