@@ -67,7 +67,7 @@ function MachineConfiguration(config) {
      * @returns {String}
      */
     this.extend = function(extension) {
-        config = Object.merge(config, extension);
+        config = angular.merge(config, extension);
     };
 
     /**

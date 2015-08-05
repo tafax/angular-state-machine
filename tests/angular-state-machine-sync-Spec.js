@@ -4,6 +4,8 @@ describe('angular-state-machine-sync', function() {
 
     // The state machine service.
     var _stateMachine;
+    // The rootScope
+    var _rootScope;
     // The injector service.
     var _injector;
 
@@ -75,6 +77,7 @@ describe('angular-state-machine-sync', function() {
 
         inject(function($injector) {
             _stateMachine = $injector.get('stateMachine');
+            _rootScope = $injector.get('$rootScope');
             _injector = $injector;
             spyOn(_injector, 'invoke').and.callThrough();
         });
@@ -87,7 +90,7 @@ describe('angular-state-machine-sync', function() {
             _stateMachine.send('first');
             _stateMachine.send('second');
             _stateMachine.send('third', {param: 'test'});
-
+            _rootScope.$digest();
             expect(_injector.invoke).toHaveBeenCalled();
         });
 
@@ -95,7 +98,7 @@ describe('angular-state-machine-sync', function() {
             _stateMachine.initialize();
 
             _stateMachine.send('fake');
-
+            _rootScope.$digest();
             expect(_injector.invoke).not.toHaveBeenCalled();
         });
 
@@ -136,6 +139,7 @@ describe('angular-state-machine-sync', function() {
             expect(_stateMachine.isAvailable('fake')).toBeFalsy();
 
             _stateMachine.send('first');
+            _rootScope.$digest();
 
             expect(_stateMachine.isAvailable('first')).toBeFalsy();
             expect(_stateMachine.isAvailable('second')).toBeTruthy();
@@ -151,6 +155,7 @@ describe('angular-state-machine-sync', function() {
             expect(messages).not.toContain('fake');
 
             _stateMachine.send('first');
+            _rootScope.$digest();
 
             messages = _stateMachine.available();
 
@@ -158,6 +163,7 @@ describe('angular-state-machine-sync', function() {
             expect(messages).not.toContain('fake');
 
             _stateMachine.send('second');
+            _rootScope.$digest();
 
             messages = _stateMachine.available();
 
@@ -165,6 +171,7 @@ describe('angular-state-machine-sync', function() {
             expect(messages).not.toContain('fake');
 
             _stateMachine.send('third', {param: 'test'});
+            _rootScope.$digest();
 
             messages = _stateMachine.available();
 
