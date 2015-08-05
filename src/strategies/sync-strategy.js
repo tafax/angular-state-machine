@@ -108,7 +108,6 @@ SyncStrategy.prototype.send = function(machineConfiguration, message, parameters
 
         // Checks if the configuration has the message and it is available for the current state.
         if (!fsm.hasMessage(machineConfiguration, message) || !fsm.isAvailable(machineConfiguration, message)) {
-            console.log('unknown/unavailable message');
             return;
         }
         // Retrieves all transitions.
@@ -180,10 +179,7 @@ SyncStrategy.prototype.send = function(machineConfiguration, message, parameters
 
     };
 
-    var deferred = fsm.$q.defer();
-    fsm.$q.when(fsm.currentPromise).then(function () {
-        send_message(machineConfiguration, message, parameters);
-        deferred.resolve();
+    return fsm.$q.when(fsm.currentPromise).then(function () {
+        send_message(machineConfiguration, message, parameters)
     });
-    return deferred.promise;
 };

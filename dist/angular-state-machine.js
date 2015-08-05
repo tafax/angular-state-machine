@@ -12,36 +12,8 @@
 
 // Source: src/angular-state-machine.js
 
-/**
- * Merges two objects in one
- * by adding the properties
- * in the result.
- *
- * @param {Object} obj1
- * @param {Object} obj2
- * @returns {Object}
- */
-Object.merge = function(obj1, obj2) {
-    var result = {};
-
-    for(var i in obj1) {
-        result[i] = obj1[i];
-
-        if((i in obj2) && (typeof obj1[i] === "object") && (i !== null))
-            result[i] = Object.merge(obj1[i],obj2[i]);
-    }
-
-    for(var j in obj2) {
-        if(j in result)
-            continue;
-
-        result[j] = obj2[j];
-    }
-
-    return result;
-};
-
 var FSM = angular.module('FSM', []);
+
 
 // Source: src/services/machine-configuration.js
 
@@ -419,7 +391,6 @@ SyncStrategy.prototype.send = function(machineConfiguration, message, parameters
 
         // Checks if the configuration has the message and it is available for the current state.
         if (!fsm.hasMessage(machineConfiguration, message) || !fsm.isAvailable(machineConfiguration, message)) {
-            
             return;
         }
         // Retrieves all transitions.
@@ -491,10 +462,7 @@ SyncStrategy.prototype.send = function(machineConfiguration, message, parameters
 
     };
 
-    var deferred = fsm.$q.defer();
-    fsm.$q.when(fsm.currentPromise).then(function () {
-        send_message(machineConfiguration, message, parameters);
-        deferred.resolve();
+    return fsm.$q.when(fsm.currentPromise).then(function () {
+        send_message(machineConfiguration, message, parameters)
     });
-    return deferred.promise;
 };
