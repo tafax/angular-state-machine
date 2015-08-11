@@ -22,7 +22,8 @@ describe('angular-state-machine-sync', function() {
             stateMachineProvider.config({
                 init: {
                     transitions: {
-                        first: 'first'
+                        first: 'first',
+                        four: 'four'
                     }
                 },
                 first: {
@@ -69,7 +70,8 @@ describe('angular-state-machine-sync', function() {
 
                         expect(params).toEqual(_params);
                     }
-                }
+                },
+                four: {}
             });
         }]);
 
@@ -176,6 +178,16 @@ describe('angular-state-machine-sync', function() {
             messages = _stateMachine.available();
 
             expect(messages.length).toEqual(0);
+        });
+
+        it('should move to a state without action', function() {
+            _stateMachine.initialize();
+
+            _stateMachine.send('four');
+            _rootScope.$digest();
+
+            // Expectation.
+            expect(_stateMachine.available()).toEqual([]);
         });
     });
 });

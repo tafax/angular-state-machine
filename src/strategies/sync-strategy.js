@@ -151,12 +151,17 @@ SyncStrategy.prototype.send = function(machineConfiguration, message, parameters
 
     // If some parameters are provided it merges them into the current state.
     if (parameters) {
-        args.params = angular.merge(args.params, parameters);
+        angular.merge(args.params, parameters);
+    }
+
+    var result = undefined;
+    if (state.action && (typeof state.action === 'function' || Object.prototype.toString.call(state.action) === '[object Array]')) {
+        result = fsm.$injector.invoke(state.action, fsm, args);
     }
 
     // Executes the action defined in the state by passing the current state with the parameters. Since it is not
     // possibile to determine if the result is a promise or not it is wrapped using $q.when and treated as a promise
-    return fsm.$q.when(fsm.$injector.invoke(state.action, fsm, args)).then(function (result) {
+    return fsm.$q.when(result).then(function (result) {
 
         // Checks the result of the action and sets the parameters of the new current state.
         if (!result && fsm.currentState.params) {
@@ -169,11 +174,10 @@ SyncStrategy.prototype.send = function(machineConfiguration, message, parameters
             }
 
             // Merges the state parameters with the result.
-            state.params = angular.merge(state.params, result);
+            angular.merge(state.params, result);
         }
 
         // Sets the new current state.
         fsm.currentState = state;
     });
-
 };
