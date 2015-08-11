@@ -136,48 +136,94 @@ describe('angular-state-machine-sync', function() {
         it('should return true if the message is available for current state', function() {
             _stateMachine.initialize();
 
-            expect(_stateMachine.isAvailable('first')).toBeTruthy();
-            expect(_stateMachine.isAvailable('second')).toBeFalsy();
-            expect(_stateMachine.isAvailable('fake')).toBeFalsy();
+            _stateMachine.isAvailable('first').then(function(available){
+                // Expectation.
+                expect(available).toBeTruthy();
+            });
+            _stateMachine.isAvailable('second').then(function(available){
+                // Expectation.
+                expect(available).toBeFalsy();
+            });
+            _stateMachine.isAvailable('fake').then(function(available){
+                // Expectation.
+                expect(available).toBeFalsy();
+            });
 
             _stateMachine.send('first');
-            _rootScope.$digest();
 
-            expect(_stateMachine.isAvailable('first')).toBeFalsy();
-            expect(_stateMachine.isAvailable('second')).toBeTruthy();
-            expect(_stateMachine.isAvailable('fake')).toBeFalsy();
+            _stateMachine.isAvailable('first').then(function(available){
+                // Expectation.
+                expect(available).toBeFalsy();
+            });
+            _stateMachine.isAvailable('second').then(function(available){
+                // Expectation.
+                expect(available).toBeTruthy();
+            });
+            _stateMachine.isAvailable('fake').then(function(available){
+                // Expectation.
+                expect(available).toBeFalsy();
+            });
+
+            _rootScope.$digest();
         });
 
         it('should return the messages available in the current state', function() {
             _stateMachine.initialize();
 
-            var messages = _stateMachine.available();
-
-            expect(messages).toContain('first');
-            expect(messages).not.toContain('fake');
+            _stateMachine.available().then(function(messages){
+                // Expectations.
+                expect(messages).toContain('first');
+                expect(messages).not.toContain('fake');
+            });
 
             _stateMachine.send('first');
             _rootScope.$digest();
 
-            messages = _stateMachine.available();
-
-            expect(messages).toContain('second');
-            expect(messages).not.toContain('fake');
+            _stateMachine.available().then(function(messages){
+                // Expectations.
+                expect(messages).toContain('second');
+                expect(messages).not.toContain('fake');
+            });
 
             _stateMachine.send('second');
             _rootScope.$digest();
 
-            messages = _stateMachine.available();
-
-            expect(messages).toContain('third');
-            expect(messages).not.toContain('fake');
+            _stateMachine.available().then(function(messages){
+                // Expectations.
+                expect(messages).toContain('third');
+                expect(messages).not.toContain('fake');
+            });
 
             _stateMachine.send('third', {param: 'test'});
             _rootScope.$digest();
 
-            messages = _stateMachine.available();
+            _stateMachine.available().then(function(messages){
+                // Expectations.
+                expect(messages.length).toEqual(0);
+            });
+        });
 
-            expect(messages.length).toEqual(0);
+        it('should return the current promise', function() {
+            _stateMachine.initialize();
+
+            var successCallback = jasmine.createSpy('successCallback');
+
+            _stateMachine.send('first').then(successCallback);
+            _rootScope.$digest();
+
+            // Expectation.
+            expect(successCallback).toHaveBeenCalled();
+        });
+
+        it('should return the current state name', function() {
+            _stateMachine.initialize();
+
+            _stateMachine.send('first');
+            _stateMachine.getCurrentState().then(function(name){
+                // Expectation.
+                expect(name).toEqual('first');
+            });
+            _rootScope.$digest();
         });
 
         it('should move to a state without action', function() {
@@ -186,8 +232,26 @@ describe('angular-state-machine-sync', function() {
             _stateMachine.send('four');
             _rootScope.$digest();
 
-            // Expectation.
-            expect(_stateMachine.available()).toEqual([]);
+            _stateMachine.getCurrentState().then(function(name){
+                // Expectation.
+                expect(name).toEqual('four');
+            });
+        });
+
+        it('should execute sequential sends', function() {
+            _stateMachine.initialize();
+
+            _stateMachine.send('first');
+            _stateMachine.getCurrentState().then(function(name){
+                // Expectation.
+                expect(name).toEqual('first');
+            });
+            _stateMachine.send('second');
+            _stateMachine.getCurrentState().then(function(name){
+                // Expectation.
+                expect(name).toEqual('second');
+            });
+            _rootScope.$digest();
         });
     });
 });

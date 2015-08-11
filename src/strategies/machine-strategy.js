@@ -10,6 +10,7 @@
 function MachineStrategy(){}
 
 MachineStrategy.prototype.initialize = function(machineConfiguration){};
+MachineStrategy.prototype.getCurrentState = function(){};
 MachineStrategy.prototype.getStates = function(machineConfiguration){};
 MachineStrategy.prototype.getMessages = function(machineConfiguration){};
 MachineStrategy.prototype.hasMessage = function(machineConfiguration, message){};

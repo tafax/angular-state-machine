@@ -18,6 +18,15 @@ function StateMachine(strategy, machineConfiguration) {
     };
 
     /**
+     * Gets the current state name.
+     *
+     * @returns {String}
+     */
+    this.getCurrentState = function() {
+        return strategy.getCurrentState();
+    };
+
+    /**
      * Gets an array of the states.
      *
      * @returns {Array}
