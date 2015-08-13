@@ -1,6 +1,6 @@
 /**
  * AngularJS service to implement a finite state machine.
- * @version v1.2.0 - 2015-08-11
+ * @version v1.2.1 - 2015-08-13
  * @link https://github.com/tafax/angular-state-machine
  * @author Matteo Tafani Alunno <matteo.tafanialunno@gmail.com>
  * @license MIT License, http://www.opensource.org/licenses/MIT
@@ -341,6 +341,9 @@ SyncStrategy.prototype.getCurrentState = function() {
     return this.$q.when(this.lastPromise)
       .then(function(){
           return fsm.currentState.name;
+      })
+      .catch(function(){
+          return fsm.$q.when(fsm.currentState.name);
       });
 };
 
@@ -385,11 +388,16 @@ SyncStrategy.prototype.hasMessage = function(machineConfiguration, message) {
  */
 SyncStrategy.prototype.isAvailable = function(machineConfiguration, message) {
     var fsm = this;
+    var transitions = machineConfiguration.getTransitions();
     return this.$q.when(this.lastPromise)
       .then(function(){
-          var transitions = machineConfiguration.getTransitions();
+          console.log('available');
           var edges = transitions[fsm.currentState.name];
           return edges.hasOwnProperty(message);
+      })
+      .catch(function(){
+          var edges = transitions[fsm.currentState.name];
+          return fsm.$q.when(edges.hasOwnProperty(message));
       });
 };
 
@@ -401,11 +409,15 @@ SyncStrategy.prototype.isAvailable = function(machineConfiguration, message) {
  */
 SyncStrategy.prototype.available = function(machineConfiguration) {
     var fsm = this;
+    var transitions = machineConfiguration.getTransitions();
     return this.$q.when(this.lastPromise)
       .then(function(){
-          var transitions = machineConfiguration.getTransitions();
           var edges = transitions[fsm.currentState.name];
           return Object.keys(edges);
+      })
+      .catch(function(){
+          var edges = transitions[fsm.currentState.name];
+          return fsm.$q.when(Object.keys(edges));
       });
 };
 
@@ -422,16 +434,21 @@ SyncStrategy.prototype.send = function(machineConfiguration, message, parameters
     var fsm = this;
 
     this.lastPromise = this.$q.when(this.lastPromise).then(function(){
-        // Checks if the configuration has the message and it is available for the current state.
-        if (!fsm.hasMessage(machineConfiguration, message) || !fsm.isAvailable(machineConfiguration, message)) {
-            return;
-        }
+
+        // TODO: isAvailable depends on lastPromise, but it should use inside this function. Cycle.
         // Retrieves all transitions.
         var transitions = machineConfiguration.getTransitions();
+        var edges = transitions[fsm.currentState.name];
+
+        // Checks if the configuration has the message and it is available for the current state.
+        if (!fsm.hasMessage(machineConfiguration, message) || !edges.hasOwnProperty(message)) {
+            // If the action is rejected we delete the promise stack.
+            fsm.lastPromise = null;
+            return fsm.$q.reject();
+        }
 
         // Gets the edge related with the message.
-        var edge = transitions[fsm.currentState.name][message];
-
+        var edge = edges[message];
 
         // If the edge is an array it defines a list of transitions that should have a predicate
         // and a final state. The predicate is a function that returns true or false and for each message
@@ -477,8 +494,9 @@ SyncStrategy.prototype.send = function(machineConfiguration, message, parameters
         }
 
         // Executes the action defined in the state by passing the current state with the parameters. Since it is not
-        // possibile to determine if the result is a promise or not it is wrapped using $q.when and treated as a promise
-       return fsm.$q.when(result).then(function (result) {
+        // possible to determine if the result is a promise or not it is wrapped using $q.when and treated as a promise
+       return fsm.$q.when(result)
+         .then(function (result) {
 
             // Checks the result of the action and sets the parameters of the new current state.
             if (!result && fsm.currentState.params) {
@@ -496,7 +514,12 @@ SyncStrategy.prototype.send = function(machineConfiguration, message, parameters
 
             // Sets the new current state.
             fsm.currentState = state;
-        });
+        })
+         .catch(function () {
+             // If the action is rejected we delete the promise stack.
+             fsm.lastPromise = null;
+             return fsm.$q.reject();
+         });
     });
 
     return this.lastPromise;

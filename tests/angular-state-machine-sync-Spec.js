@@ -23,15 +23,15 @@ describe('angular-state-machine-sync', function() {
                 init: {
                     transitions: {
                         first: 'first',
-                        four: 'four'
+                        four: 'four',
+                        reject: 'reject'
                     }
                 },
                 first: {
                     transitions: {
                         second: 'second'
                     },
-                    action: function(name)
-                    {
+                    action: function(name) {
                         console.log('FIRST');
                         expect(name).toEqual('init');
                         return _params;
@@ -47,8 +47,7 @@ describe('angular-state-machine-sync', function() {
                             }
                         }]
                     },
-                    action: ['$log', 'stateMachine', 'name', 'params', function($log, stateMachine, name, params)
-                    {
+                    action: ['$log', 'stateMachine', 'name', 'params', function($log, stateMachine, name, params) {
                         console.log('SECOND');
                         expect(stateMachine).not.toBeUndefined();
                         expect($log).not.toBeUndefined();
@@ -61,8 +60,7 @@ describe('angular-state-machine-sync', function() {
                     }]
                 },
                 third: {
-                    action: function(params)
-                    {
+                    action: function(params) {
                         console.log('THIRD');
 
                         _params.second = 'second';
@@ -71,7 +69,14 @@ describe('angular-state-machine-sync', function() {
                         expect(params).toEqual(_params);
                     }
                 },
-                four: {}
+                four: {},
+                reject: {
+                    action: ['$q', function($q) {
+                        var deferred = $q.defer();
+                        deferred.reject();
+                        return deferred.promise;
+                    }]
+                }
             });
         }]);
 
@@ -215,8 +220,94 @@ describe('angular-state-machine-sync', function() {
             expect(successCallback).toHaveBeenCalled();
         });
 
+        it('should return the current promise and call rejection', function() {
+            _stateMachine.initialize();
+
+            var successCallback = jasmine.createSpy('successCallback');
+            var errorCallback = jasmine.createSpy('errorCallback');
+
+            _stateMachine.send('reject')
+              .then(successCallback)
+              .catch(errorCallback);
+            _rootScope.$digest();
+
+            // Expectation.
+            expect(successCallback).not.toHaveBeenCalled();
+            expect(errorCallback).toHaveBeenCalled();
+        });
+
+        it('should return the current promise and call rejection if the message doesn\'t exist', function() {
+            _stateMachine.initialize();
+
+            var successCallbackFirst = jasmine.createSpy('successCallbackFirst');
+            var errorCallbackFirst = jasmine.createSpy('errorCallbackFirst');
+
+            _stateMachine.send('fake')
+              .then(successCallbackFirst)
+              .catch(errorCallbackFirst);
+            _rootScope.$digest();
+
+            var successCallbackSecond = jasmine.createSpy('successCallbackSecond');
+            var errorCallbackSecond = jasmine.createSpy('errorCallbackSecond');
+
+            _stateMachine.send('first')
+              .then(successCallbackSecond)
+              .catch(errorCallbackSecond);
+            _rootScope.$digest();
+
+            // Expectation.
+            expect(successCallbackFirst).not.toHaveBeenCalled();
+            expect(errorCallbackFirst).toHaveBeenCalled();
+            expect(successCallbackSecond).toHaveBeenCalled();
+            expect(errorCallbackSecond).not.toHaveBeenCalled();
+        });
+
+        it('should return the current promise and call rejection if the message is not available', function() {
+            _stateMachine.initialize();
+
+            var successCallbackFirst = jasmine.createSpy('successCallbackFirst');
+            var errorCallbackFirst = jasmine.createSpy('errorCallbackFirst');
+
+            _stateMachine.send('second')
+              .then(successCallbackFirst)
+              .catch(errorCallbackFirst);
+            _rootScope.$digest();
+
+            var successCallbackSecond = jasmine.createSpy('successCallbackSecond');
+            var errorCallbackSecond = jasmine.createSpy('errorCallbackSecond');
+
+            _stateMachine.send('first')
+              .then(successCallbackSecond)
+              .catch(errorCallbackSecond);
+            _rootScope.$digest();
+
+            // Expectation.
+            expect(successCallbackFirst).not.toHaveBeenCalled();
+            expect(errorCallbackFirst).toHaveBeenCalled();
+            expect(successCallbackSecond).toHaveBeenCalled();
+            expect(errorCallbackSecond).not.toHaveBeenCalled();
+        });
+
         it('should return the current state name', function() {
             _stateMachine.initialize();
+
+            _stateMachine.send('first');
+            _stateMachine.getCurrentState().then(function(name){
+                // Expectation.
+                expect(name).toEqual('first');
+            });
+            _rootScope.$digest();
+        });
+
+        it('should return the current state name if the action is rejected', function() {
+            _stateMachine.initialize();
+
+            _stateMachine.send('reject');
+            _stateMachine.getCurrentState().then(function(name){
+                // Expectation.
+                expect(name).toEqual('init');
+            });
+            _rootScope.$digest();
 
             _stateMachine.send('first');
             _stateMachine.getCurrentState().then(function(name){
