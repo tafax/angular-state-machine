@@ -41,7 +41,7 @@ We want to create a state machine to handle the user login in a single page appl
 `notLoggedIn`. To perform a transition between the states we need to send a request and receive a `201` status code
 from the server that indicates a successful login.
 ````javascript
-stateMachineProvider.setConfig({
+stateMachineProvider.config({
     init: { // This is the initial state(the not_logged_in one, but you have to call it 'init'). It is mandatory.
         transitions: {
             201: 'loggedIn'
@@ -65,7 +65,7 @@ The machine is ready to receive messages. If the login was successful, a message
 The previous machine is not so useful, but we can add some states to provide a more realistic usage of that configuration.
 Let's add a state to handle a login error that the server returns if the response code is `401`.
 ````javascript
-stateMachineProvider.setConfig({
+stateMachineProvider.config({
     init: { // This is the initial state(the not_logged_in one, but you have to call it 'init'). It is mandatory.
         transitions: {
             201: 'loggedIn',
@@ -93,7 +93,7 @@ In some cases when an error returns from the server for a given HTTP status code
 that the app could use to manage different kind of handling. In this case we can use an application code as a transition message instead of
 the status code or we can use the `predicate` feature.
 ````javascript
-stateMachineProvider.setConfig({
+stateMachineProvider.config({
     init: { // This is the initial state(the not_logged_in one, but you have to call it 'init'). It is mandatory.
         transitions: {
             201: 'loggedIn',
